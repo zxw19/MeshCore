@@ -29,6 +29,10 @@ public:
   const char* getSettingValue(int i) const override;
   bool setSettingValue(const char* name, const char* value) override;
   LocationProvider* getLocationProvider() { return _nmea; }
+  // Drives GPS power for the SmartGps manager (CLI / AUTO mode). Uses the
+  // same start_gps()/stop_gps() paths as the stock App setting, so
+  // gps_active and NMEA state stay consistent.
+  void smartGpsSetPower(bool on);
 };
 
 #ifdef DISPLAY_CLASS

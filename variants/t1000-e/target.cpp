@@ -3,6 +3,7 @@
 #include "target.h"
 #include <helpers/sensors/MicroNMEALocationProvider.h>
 #include <helpers/sensors/AirohaSleep.h>
+#include "SmartGps.h"
 
 T1000eBoard board;
 
@@ -13,6 +14,11 @@ WRAPPER_CLASS radio_driver(radio, board);
 VolatileRTCClock rtc_clock;
 MicroNMEALocationProvider nmea = MicroNMEALocationProvider(Serial1, &rtc_clock);
 T1000SensorManager sensors = T1000SensorManager(nmea);
+
+// Smart GPS experiment: bridge SmartGps power requests into the sensor
+// manager so all GPS power transitions share one code path.
+static void smartGpsPowerBridge(bool on) { sensors.smartGpsSetPower(on); }
+SmartGps smart_gps(smartGpsPowerBridge);
 
 #ifdef DISPLAY_CLASS
   NullDisplayDriver display;
@@ -97,6 +103,11 @@ void T1000SensorManager::stop_gps() {
   digitalWrite(GPS_EN, LOW);
 }
 
+void T1000SensorManager::smartGpsSetPower(bool on) {
+  if (on) start_gps();
+  else stop_gps();
+}
+
 
 bool T1000SensorManager::begin() {
   // init GPS
@@ -132,6 +143,8 @@ void T1000SensorManager::loop() {
     }
     next_gps_update = millis() + 1000;
   }
+
+  smart_gps.tick(millis());   // Smart GPS experiment: AUTO state machine
 }
 
 int T1000SensorManager::getNumSettings() const { return 1; }  // just one supported: "gps" (power switch)
@@ -149,8 +162,10 @@ bool T1000SensorManager::setSettingValue(const char* name, const char* value) {
   if (strcmp(name, "gps") == 0) {
     if (strcmp(value, "0") == 0) {
       stop_gps();
+      smart_gps.onManualGpsSetting(false);   // manual OFF: cancels AUTO, top priority
     } else {
       start_gps();
+      smart_gps.onManualGpsSetting(true);    // manual ON: cancels AUTO
     }
     return true;
   }

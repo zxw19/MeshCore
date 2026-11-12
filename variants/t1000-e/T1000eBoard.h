@@ -38,6 +38,10 @@ public:
     return "Seeed Tracker T1000-E";
   }
 
+  // Board-specific CLI hook (called by MyMesh::handleCommand before the
+  // generic commands). Handles the Smart GPS "gps.*" command family.
+  bool handleCommand(const char* command, uint32_t sender_timestamp, char* reply) override;
+
   int buttonStateChanged() {
   #ifdef BUTTON_PIN
     uint8_t v = digitalRead(BUTTON_PIN);
